@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from pydantic import BaseModel
-import asyncio
+
 import datetime
 from typing import List
 from typing import Optional
 
-from sqlalchemy import ForeignKey
+
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -16,8 +16,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from fastapi import FastAPI, Depends
