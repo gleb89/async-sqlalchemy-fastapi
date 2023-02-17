@@ -45,7 +45,7 @@ class A(Base):
   
 
 class AInfo(BaseModel):
-    id:int
+    id:Optional[int]  = None
     data:str
 
     class Config:
@@ -82,9 +82,17 @@ async def test():
 async def person_get(name,session: AsyncSession = Depends(get_session)):
     async with session as ses:
         query = await ses.execute(select(A).where(A.data == name))
-        result = query.fetchall()
+        
+        result = query.scalars().all()
     return result
 
+
+@app.get('/person/search/')
+async def person_search(search:str,session: AsyncSession = Depends(get_session)):
+    async with session as ses:
+        query = await ses.execute(select(A).where(func.lower(A.data).regexp_match(search.lower())))
+        result = query.scalars().all()
+    return result
 
 @app.get('/person',response_model=List[AInfo])
 async def get_all(session: AsyncSession = Depends(get_session)):
@@ -95,11 +103,10 @@ async def get_all(session: AsyncSession = Depends(get_session)):
 
 
 @app.post('/person/')
-async def person_post(name:str,session: AsyncSession = Depends(get_session)):
+async def person_post(data:AInfo,session: AsyncSession = Depends(get_session)):
     
-
     async with session as ses:
-        person = A(data=name)
+        person = A(**data.dict())
         ses.add(person)
         await ses.commit()
 
