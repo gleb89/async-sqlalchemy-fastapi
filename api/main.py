@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-
+from pydantic import BaseModel
 import asyncio
 import datetime
 from typing import List
@@ -43,6 +43,15 @@ class A(Base):
     create_date: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now()
     )
+
+  
+
+class AInfo(BaseModel):
+    id:int
+    data:str
+
+    class Config:
+        orm_mode = True
     
 
 @app.on_event("startup")
@@ -80,17 +89,16 @@ async def test():
 async def person_get(name,session: AsyncSession = Depends(get_session)):
     async with session as ses:
         query = await ses.execute(select(A).where(A.data == name))
-        result = query.scalar()
+        result = query.fetchall()
     return result
 
 
-@app.get('/person')
+@app.get('/person',response_model=List[AInfo])
 async def get_all(session: AsyncSession = Depends(get_session)):
     async with session as ses:
         query = await ses.execute(select(A))
-        result = query.scalar()
-  
-    return result
+        result = query.scalars().all()
+        return result
 
 
 @app.post('/person/')
