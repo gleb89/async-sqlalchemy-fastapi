@@ -79,13 +79,20 @@ async def test():
     return ''
 
 @app.get('/person/{name}')
-async def person_get(name,session: AsyncSession = Depends(get_session)):
+async def person_filter(name:str,session: AsyncSession = Depends(get_session)):
     async with session as ses:
-        query = await ses.execute(select(A).where(A.data == name))
-        
+        query = await ses.execute(select(A).filter_by(data = name))
         result = query.scalars().all()
     return result
 
+
+@app.get('/person/one/{id}')
+async def get_one(id:int,session: AsyncSession = Depends(get_session)):
+    async with session as ses:
+        query = await ses.get(A,id)
+        
+        
+    return query
 
 @app.get('/person/search/')
 async def person_search(search:str,session: AsyncSession = Depends(get_session)):
