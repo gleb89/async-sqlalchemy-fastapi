@@ -5,9 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from pydantic import BaseModel
 
 import datetime
-from typing import List
-from typing import Optional
-
 
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -19,6 +16,14 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from fastapi import FastAPI, Depends
+from typing import Optional, List
+from sqlalchemy.orm import mapped_column
+from sqlalchemy import (
+    ForeignKey,
+
+)
+from sqlalchemy.orm import joinedload, lazyload
+from sqlalchemy.orm import relationship
 
 app = FastAPI()
 
@@ -33,8 +38,8 @@ engine = create_async_engine(
 
 Base = declarative_base()
 
-class A(Base):
-    __tablename__ = "a"
+class Category(Base):
+    __tablename__ = "category"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     data: Mapped[Optional[str]]
@@ -43,13 +48,16 @@ class A(Base):
     )
 
   
+#https://docs.sqlalchemy.org/en/14/orm/loading_relationships.html#sqlalchemy.orm.joinedload
+class Product(Base):
+    __tablename__ = "product"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    data:Mapped[str]
+    category_id: Mapped[int] = mapped_column(ForeignKey("category.id"))
+    # category: Mapped["Category"] = relationship(Category,lazy="joined")
+    category: Mapped["Category"] = relationship(Category)
 
-class AInfo(BaseModel):
-    id:Optional[int]  = None
-    data:str
 
-    class Config:
-        orm_mode = True
     
 
 @app.on_event("startup")
@@ -71,50 +79,61 @@ async def get_session() :
 async def shutdown() -> None:
     pass
 
-import time
-@app.get('/test')
-async def test():
-    for i in range(1,1000000):
-        print(i)
-    return ''
-
-@app.get('/person/{name}')
-async def person_filter(name:str,session: AsyncSession = Depends(get_session)):
-    async with session as ses:
-        query = await ses.execute(select(A).filter_by(data = name))
-        result = query.scalars().all()
-    return result
 
 
-@app.get('/person/one/{id}')
-async def get_one(id:int,session: AsyncSession = Depends(get_session)):
-    async with session as ses:
-        query = await ses.get(A,id)
-        
-        
-    return query
 
-@app.get('/person/search/')
-async def person_search(search:str,session: AsyncSession = Depends(get_session)):
-    async with session as ses:
-        query = await ses.execute(select(A).where(func.lower(A.data).regexp_match(search.lower())))
-        result = query.scalars().all()
-    return result
+class CategoryCreate(BaseModel):
+    id:int
+    data:str
+    
+    class Config:
+        orm_mode = True
 
-@app.get('/person',response_model=List[AInfo])
-async def get_all(session: AsyncSession = Depends(get_session)):
-    async with session as ses:
-        query = await ses.execute(select(A))
-        result = query.scalars().all()
-        return result
+class ProductCreate(BaseModel):
+    id:Optional[int] = None
+    data:str
+    category_id:int
 
+class ProductInfo(BaseModel):
+    id:int
+    data:str
+    category:CategoryCreate
 
-@app.post('/person/')
-async def person_post(data:AInfo,session: AsyncSession = Depends(get_session)):
+    class Config:
+        orm_mode = True
+
+@app.post('/category/')
+async def person_post(data:CategoryCreate,session: AsyncSession = Depends(get_session)):
     
     async with session as ses:
-        person = A(**data.dict())
+        person = Category(**data.dict())
         ses.add(person)
         await ses.commit()
 
     return person
+
+@app.get('/category/',response_model=List[CategoryCreate])
+async def get_all(session: AsyncSession = Depends(get_session)):
+    async with session as ses:
+        query = await ses.execute(select(Category))
+        result = query.scalars().all()
+    return result
+
+@app.post('/product/')
+async def person_post(data:ProductCreate,session: AsyncSession = Depends(get_session)):
+    
+    async with session as ses:
+        person = Product(**data.dict())
+        ses.add(person)
+        await ses.commit()
+
+    return person
+
+
+@app.get('/product/',response_model=List[ProductInfo])
+async def get_all(session: AsyncSession = Depends(get_session)):
+    async with session as ses:
+        # query = await ses.execute(select(Product).options(joinedload(Product.category, innerjoin=True)))
+        query = await ses.execute(select(Product).options(joinedload("*")))
+        result = query.scalars().all()
+        return result
