@@ -31,7 +31,7 @@ app = FastAPI()
    
 engine = create_async_engine(
     "sqlite+aiosqlite:///./test.db",
-    echo=True,
+    
 )
 
 
@@ -55,6 +55,7 @@ class Product(Base):
     data:Mapped[str]
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"))
     # category: Mapped["Category"] = relationship(Category,lazy="joined")
+    # category: Mapped["Category"] = relationship(Category,lazy="selectin")
     category: Mapped["Category"] = relationship(Category)
 
 
@@ -133,7 +134,8 @@ async def person_post(data:ProductCreate,session: AsyncSession = Depends(get_ses
 @app.get('/product/',response_model=List[ProductInfo])
 async def get_all(session: AsyncSession = Depends(get_session)):
     async with session as ses:
-        # query = await ses.execute(select(Product).options(joinedload(Product.category, innerjoin=True)))
-        query = await ses.execute(select(Product).options(joinedload("*")))
+        query = await ses.execute(select(Product).options(joinedload(Product.category, innerjoin=True)))
+        # query = await ses.execute(select(Product).options(joinedload("*")))
+        # query = await ses.execute(select(Product))
         result = query.scalars().all()
         return result
