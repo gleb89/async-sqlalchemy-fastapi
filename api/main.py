@@ -25,7 +25,7 @@ app = FastAPI()
 
    
 engine = create_async_engine(
-    "postgresql+asyncpg://postgres:postgres@data_b/postgres",
+    "sqlite+aiosqlite:///./test.db",
     echo=True,
 )
 
