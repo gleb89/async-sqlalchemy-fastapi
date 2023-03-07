@@ -17,7 +17,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import declarative_base, sessionmaker
 from fastapi import FastAPI, Depends
 from typing import Optional, List
-from sqlalchemy.orm import mapped_column
 from sqlalchemy import (
     ForeignKey,
 
@@ -27,7 +26,7 @@ from sqlalchemy.orm import relationship
 
 from fastapi import FastAPI
 from sqladmin import Admin, ModelView
-
+from sqlalchemy.orm import validates
 
 app = FastAPI()
 
@@ -47,7 +46,7 @@ class Category(Base):
     __tablename__ = "category"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    data: Mapped[Optional[str]]
+    data: Mapped[Optional[str]] 
     create_date: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now()
     )
@@ -55,7 +54,9 @@ class Category(Base):
     def __str__(self) -> str:
         return self.data
 
-  
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.declarative import synonym_for
+from sqlalchemy import event
 #https://docs.sqlalchemy.org/en/14/orm/loading_relationships.html#sqlalchemy.orm.joinedload
 class Product(Base):
     __tablename__ = "product"
@@ -65,6 +66,30 @@ class Product(Base):
     # category: Mapped["Category"] = relationship(Category,lazy="joined")
     # category: Mapped["Category"] = relationship(Category,lazy="selectin")
     category: Mapped["Category"] = relationship(Category)
+    # _job_status = Column("job_status", String(50),nullable=True,default='www')
+
+    # @validates("data")
+    # def validate_email(self, key, vals):
+    #     if len(vals) < 2:
+    #         raise ValueError("failed simple email validation")
+    #     return vals
+
+    # @synonym_for("job_status")
+    # @property
+    # def job_status(self):
+    #     return "Status: %s" % self._job_status
+
+    @hybrid_property
+    def new_field(self):
+      
+        return self.id > 3
+
+@event.listens_for(Product,"after_insert")
+def after_post_insert(mapper, connection, target):
+    target.data = target.data+'ffff'
+    # print(12344,arg[1]['data'])
+    # instance.data = 'test'
+
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -78,6 +103,18 @@ async def startup() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
+admin = Admin(app, engine)
+
+
+class UserAdmin(ModelView, model=User):
+    column_list = [User.id, User.first_name]
+
+class CategoryAdmin(ModelView, model=Category):
+    column_list = [Category.id, Category.data]
+
+
+admin.add_view(UserAdmin)
+admin.add_view(CategoryAdmin)
 
 async def get_session() :
     async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -169,7 +206,7 @@ async def shutdown() -> None:
 
 
 class CategoryCreate(BaseModel):
-    id:int
+    id:Optional[int] = None
     data:str
     
     class Config:
@@ -184,6 +221,7 @@ class ProductInfo(BaseModel):
     id:int
     data:str
     category:CategoryCreate
+    new_field:str
 
     class Config:
         orm_mode = True
